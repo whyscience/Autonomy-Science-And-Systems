@@ -26,8 +26,8 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-def generate_launch_description():
 
+def generate_launch_description():
     return LaunchDescription([
         Node(
             package='assignment_3a',
@@ -40,6 +40,6 @@ def generate_launch_description():
             package='rviz2',
             executable='rviz2',
             name='odometry_rviz',
-            arguments=['-d', [FindPackageShare("assignment_3a"), '/rviz', '/assignment_3a.rviz',]]
+            arguments=['-d', [FindPackageShare("assignment_3a"), '/rviz', '/assignment_3a.rviz', ]]
         ),
     ])

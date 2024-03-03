@@ -33,8 +33,8 @@ from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import LaunchConfiguration
 from launch.actions import ExecuteProcess
 
-def generate_launch_description():
 
+def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='True')
 
     pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
@@ -62,17 +62,17 @@ def generate_launch_description():
             PythonLaunchDescriptionSource([turtlebot3_gazebo_launch, '/robot_state_publisher.launch.py']),
             launch_arguments={'use_sim_time': use_sim_time}.items(),
         ),
-        Node(
-            package='assignment_3a',
-            executable='wall_following',
-            name='wall_following_node',
-            emulate_tty=True,
-            output='screen',
-        ),
+        # Node(
+        #     package='assignment_3a',
+        #     executable='wall_following',
+        #     name='wall_following_node',
+        #     emulate_tty=True,
+        #     output='screen',
+        # ),
         Node(
             package='rviz2',
             executable='rviz2',
             name='odometry_rviz',
-            arguments=['-d', [FindPackageShare("assignment_3a"), '/rviz', '/assignment_3a.rviz',]]
+            arguments=['-d', [FindPackageShare("assignment_3a"), '/rviz', '/assignment_3a.rviz', ]]
         ),
     ])
