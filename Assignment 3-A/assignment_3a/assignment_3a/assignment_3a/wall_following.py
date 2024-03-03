@@ -80,7 +80,7 @@ class PIDController:
 # Node class
 class RobotController(Node):
     #######################
-    '''Class constructor'''
+    """Class constructor"""
 
     #######################
 
@@ -90,17 +90,19 @@ class RobotController(Node):
         print(info)
         # ROS2 infrastructure
         super().__init__('robot_controller')  # Create a node with name 'robot_controller'
-        qos_profile = QoSProfile(  # Ouality of Service profile
-            reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE,
+        # self.set_parameter(rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True))
+        qos_profile = QoSProfile(  # Quality of Service profile
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
             # Reliable (not best effort) communication
-            history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,  # Keep/store only up to last N samples
+            history=QoSHistoryPolicy.KEEP_LAST,  # Keep/store only up to last N samples
             depth=10  # Queue size/depth of 10 (only honored if the “history” policy was set to “keep last”)
         )
+        qos_profile_pub = QoSProfile(depth=10, reliability=QoSReliabilityPolicy.RELIABLE)
         self.robot_scan_sub = self.create_subscription(LaserScan, '/scan', self.robot_laserscan_callback,
                                                        qos_profile)  # Subscriber which will subscribe to LaserScan message on the topic '/scan' adhering to 'qos_profile' QoS profile
         self.robot_scan_sub  # Prevent unused variable warning
         self.robot_ctrl_pub = self.create_publisher(Twist, '/cmd_vel',
-                                                    qos_profile)  # Publisher which will publish Twist message to the topic '/cmd_vel' adhering to 'qos_profile' QoS profile
+                                                    qos_profile_pub)  # Publisher which will publish Twist message to the topic '/cmd_vel' adhering to 'qos_profile' QoS profile
         timer_period = 0.001  # Node execution time period (seconds)
         self.timer = self.create_timer(timer_period,
                                        self.robot_controller_callback)  # Define timer to execute 'robot_controller_callback()' every 'timer_period' seconds
@@ -119,12 +121,13 @@ class RobotController(Node):
 
     def robot_laserscan_callback(self, msg):
         self.laserscan = msg.ranges  # Capture most recent laserscan
+        # print('Laser scan data received...')
 
     def robot_controller_callback(self):
         DELAY = 4.0  # Time delay (s)
         if self.get_clock().now() - self.start_time > Duration(seconds=DELAY):
-            if self.laserscan.__sizeof__() == 0:
-                print('No laserscan data available...')
+            if len(self.laserscan) == 0:
+                # self.get_logger().info('No laserscan data available...')
                 return
             left_scan_avg = sum(self.laserscan[75:105]) / len(
                 self.laserscan[75:105])  # Average of laserscan from left sector
@@ -133,24 +136,25 @@ class RobotController(Node):
             cte = left_scan_avg - right_scan_avg  # Compute error (distance from either walls)
             tstamp = time.time()  # Current timestamp (s)
             if cte == inf:
-                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]),
+                lin_vel = self.pid_lon.control(min(3.5, self.laserscan[0]),
                                                tstamp)  # Linear velocity (m/s) from longitudinal PID controller
-                ANG_VEL = 0.15  # Angular velocity (rad/s)
+                ang_vel = 0.15  # Angular velocity (rad/s)
             elif cte == -inf:
-                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]),
+                lin_vel = self.pid_lon.control(min(3.5, self.laserscan[0]),
                                                tstamp)  # Linear velocity (m/s) from longitudinal PID controller
-                ANG_VEL = -0.15  # Angular velocity (rad/s)
+                ang_vel = -0.15  # Angular velocity (rad/s)
             else:
-                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]),
+                lin_vel = self.pid_lon.control(min(3.5, self.laserscan[0]),
                                                tstamp)  # Linear velocity (m/s) from longitudinal PID controller
-                ANG_VEL = min(0.15,
+                ang_vel = min(0.15,
                               self.pid_lat.control(cte, tstamp))  # Angular velocity (rad/s) from lateral PID controller
-            self.ctrl_msg.linear.x = LIN_VEL  # Set linear velocity
-            self.ctrl_msg.angular.z = ANG_VEL  # Set angular velocity
+            self.ctrl_msg.linear.x = lin_vel  # Set linear velocity
+            self.ctrl_msg.angular.z = ang_vel  # Set angular velocity
             self.robot_ctrl_pub.publish(self.ctrl_msg)  # Publish robot controls message
-            print('Relative distance error from walls is {} m'.format(round(cte, 4)))
+            print('Relative distance error from walls is {} m, LIN_VEL: {}, ANG_VEL: {}'.format(round(cte, 3), round(lin_vel, 2), round(ang_vel, 2)))
             # print('Robot moving with {} m/s and {} rad/s'.format(LIN_VEL, ANG_VEL))
         else:
+            # self.get_logger().info('Initializing...')
             print('Initializing...')
 
 
